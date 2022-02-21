@@ -1,0 +1,314 @@
+---
+title: "Module3_Assignment_Ananya"
+author: "Ananya Sharma"
+date: "30/01/2022"
+output: html_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+
+devtools::source_gist("c83e078bf8c81b035e32c3fc0cf04ee8", 
+                      filename = 'render_toc.R')
+
+library(ggcorrplot)           # for plotting corr plot
+library(magrittr)
+library(dplyr)
+library(carData)
+library(ggpubr)
+library(ggstatsplot)
+library(broom)   # For summ function for understanding multicollinearity
+library(jtools)   # for summ function so as to analyse multicollinearity
+
+```
+
+
+```{r toc, echo=FALSE} 
+
+render_toc("Module3_Assignment.Rmd")
+
+```
+
+
+```{r, comment=NA}
+# Read the file
+Ames_Dataset<-read.csv("AmesHousing.csv")
+
+```
+
+
+```{r, include=FALSE}
+Ames_df=as.data.frame(Ames_Dataset)
+
+```
+
+## Descriptive Analytics: Summary
+
+```{r,include=FALSE}
+
+psych::describe(Ames_df)
+
+#colnames(Ames_df)           # to understand the column names of the dataset
+
+#str(Ames_df)  #to understand which variables is of type character or factor
+```
+
+## Corrplot for Continuous data
+
+* This graph has been taken from the first assignment for understanding the correlation amongst the 
+variables in the data set
+
+```{r, comment=NA}
+ #Reference- Assignment 1(self)
+
+c<-subset(Ames_df,select=c(Screen.Porch,Overall.Qual,Lot.Area,Fireplaces,Gr.Liv.Area,SalePrice,Year.Built))
+MyCorr1<-as.data.frame(cor(c))  #Converting to a data frame
+               
+cor(MyCorr1)
+ggcorrplot(cor(c),method = "circle",
+                       title = "Correlation Plot:Table for Numerical Data"
+                       ,type = "upper",
+                       lab = TRUE)
+
+```
+<br>...................</br>
+
+* Sale Price has a very Strong Correlation with Overall Quality (80%)
+* Sale Price has a Strong relation with Gr.Living.Area(71%)
+* Screen Porch (11%) has a weak correlation with Sale Price.
+* Lot Area(27%) of the building has a weak correlation with the Sale Price.
+
+* The residual standard error is 61390. 
+* R Squared Value is 0.4101 and adjusted R square value is slightly better at 0.4097
+* F Statistic is 1017 on 2
+
+```{r, comment=NA}
+
+Ames_corr = subset(Ames_df, select=c(Yr.Sold,SalePrice,Year.Built,Garage.Area,Lot.Frontage,Yr.Sold,Wood.Deck.SF,Pool.Area,Kitchen.AbvGr,TotRms.AbvGrd,Lot.Area,MS.SubClass,Bedroom.AbvGr,Misc.Val,Gr.Liv.Area))
+
+
+X1<-na.omit(Ames_corr)     # removing NA Values
+
+des_stat_corr <- psych::describe(X1)
+des_stat_corr 
+corplotting <- cor(X1) 
+
+ggcorrplot((round(corplotting,2)),
+           colors = c("red", "bisque", "darkgreen"),lab = TRUE,lab_size =2.5) +
+  ggtitle("Corrplot ")
+
+
+```
+
+* The above corr plot depicts that Sale Price has a medium correlation with Garage Area(0.65)
+* The above corr plot has a weak relation with the Kitchen Above Ground(-0.13)
+* The corr plot sets a base which helps us to analyse which variables we can consider for our study
+  ahead for the regression Analysis.
+
+## Regression Analysis
+
+```{r,comment=NA}
+# Variables with the highest correlations.
+# Sales prices and different ranges of correlations  
+# High correlation of Sale Price with Greater Living Area and Overall Quality 
+library(stats)
+z <- lm(SalePrice ~ Overall.Qual+Gr.Liv.Area, data = Ames_df)
+
+plot(z)                           
+summary(z)                # To summarise the regression model
+#Residu<-resid(z)              # to access the Residuals for sale Price and Over All Quality of the house 
+
+coef(z)             # the coefficient of Sale Price and Overall Quality is 45251
+
+```
+* The goodness of fit of a regression model is determined by R-square. As a result, a greater
+  R-square shows that the model is well-fitting, whereas a lower R-squared suggests
+  that the model is not well-fitting.
+* We have used Overall Quality and Gr Living Area as the explanatory variables for our first
+  analysis.Both are having high correlation with the sales price.
+* The F statistic is 3998 on 2 and 2927 Degrees of Freedom
+* The R Squared value is 0.732 and Adjusted R Squared Value 0.7319. R Square determines the degree of   variation of the output variables.However, R squared is not a formal test.
+* Any value above 0.7 is a good R Square Value for estimating that the independent variables can be    considered for studying the effect on the dependent variable, however, any further increments can    greatly increase the R Square drastically. 
+* The F statistic is a ratio of the two variances. F test can represent the dispersion of the data     from the mean.
+* Here the overall p-value: < 2.2e-16 , that means that at least one independent value is associated   with the output variable. If we take more than one independent variable the output won't be biased.
+* `Interpretating a QQ Plot:` The line plotted here is deviating at the ends.QQ plot is able to tell
+   if the data is normally distributed or not.
+* `Residual vs Fitted Plot:` This plot tells us that the linearity is violated. The spread of the 
+   residuals tends to be increasing progressively towards the right hand side of the x axis. 
+* `The standardised Residuals vs Fitted Model:` This graph shows that the residuals increase with the
+   predictor variables.The graph needs the predictor to be fitted with logarithmic function for a
+   better interpretation.
+  
+
+```{r, comment=NA, fig.cap="Figure: Regression Analysis with low correlation"}
+#Variables with the lowest correlation
+
+b <- lm(SalePrice ~ Year.Built+Mas.Vnr.Area, data = Ames_df)
+
+plot(b)              #This plot takes care of QQ Plot and residual Plot              
+
+summary(b)                # To summarise the regression model
+
+#Residu<-resid(b)      # to access the Residuals for sale Price and Over All Quality of the house 
+
+coef(b)             # the coefficient of Sale Price and Overall Quality is 45251
+```
+* Year in which the house was built has the lowest magnitude of ceofficient
+* Mansion Veneer Area has the lowest T value.
+* The Residual error of the first regression model is 41370, whereas the residual error of the second
+  regression model is 60030. It is self understood that the independent variables of the first model
+  are a better fit for the regression analysis.
+* `QQ Plot Representation:` The QQ plot shows that the data is not normally distributed.
+* `The Residuals vs Fitted plot:` This plot depicts that the data is more scattered towards the right    of the graph
+
+```{r pressure, echo=TRUE, fig.keep='all',comment=NA}
+
+#Plot for highest Magnitude of Coefficient
+
+require(stats)
+par(mfcol= c(2,2))
+# Equation to find out the intercept and the slope of the line
+
+reg1<-lm(SalePrice ~ Gr.Liv.Area, data = Ames_df)   # Ground Floor Liv area has a high coef magnitude
+summary(reg1)
+res1 <- residuals(reg1)
+
+
+#Plotting regression line with highest T statistic
+plot(fitted(reg1),res1,
+     col='red', pch=12, cex=.5,
+     main="Sale price vs Ground floor living area",
+     ylab="Sale Price", xlab="Ground Floor Living area") + 
+  abline( 0,0)
+
+#Plot between Highest T statistic
+
+reg2<-lm(SalePrice ~ Overall.Qual, data = Ames_df) # Ground Floor Liv area has a high coef magnitude
+summary(reg2)
+res2 <- residuals(reg2)
+plot(fitted(reg2),res2,col='red', pch=12, cex=.5,
+     main="Sale price and Over All Quality",
+     ylab="Sale Price", xlab="Over All Quality") + 
+  abline(0,0)
+      
+# Plot between the lowest Coefficient 
+
+reg3<-lm(SalePrice ~ Year.Built, data = Ames_df)   
+summary(reg3)
+res3 <- residuals(reg3)
+plot(fitted(reg3),res3,
+     col='red', pch=12, cex=.5,
+     main="Sale price vs Year Built",
+     ylab="Sale Price", xlab="Year Built") + 
+  abline(0,0)
+
+
+#Plot Between the lowest t statistic
+
+
+###
+Model_reg4<-lm(SalePrice ~ Mas.Vnr.Area, data = Ames_df)   
+res4<-residuals(Model_reg4)
+
+
+plot(fitted(Model_reg4),res4,
+     col='red', pch=12, cex=.5,
+     main="Sale price vs Veneer Area",
+     ylab="Sale Price", xlab="Mansion Veneer Area") + 
+  abline(0,0)
+```
+* From the above plot Sale Price vs Ground Floor Living Area, we see that the observation of data is
+  evenly distributed.
+* From the plot between Sale Price and Year Built, we see that the data points are distributed more
+  towards the right hand side of the graph.
+* Plot between Sale Price and Over All quality shows segmented distribution.
+* Plot between Sale Price and Veneer Area is not showing any pattern as such.Cluster is present near
+  the lower area of the graph.
+
+
+## Checking Outliers and removing them  - Part B  
+
+* The boxplots made below shows how the outliers have been removed from the select variables.
+
+```{r,comment=NA}
+
+
+# Create a boxplot of the dataset - Identify five outliers
+par(mfrow = c(2,3))
+Outlier_Value1 = boxplot(Ames_df$SalePrice,main="Box plot of Sale Price", range=3,outcol="red",col="blue")$out
+Outlier_Value2 = boxplot(Ames_df$Garage.Area,main="Box plot of Garage Area", range=3,outcol="red",col="brown")$out
+Outlier_Value3 = boxplot(Ames_df$Gr.Liv.Area,main="Box plot of Ground Floor Living Area", range=3,outcol="red",col="lightblue")$out
+Outlier_Value4 = boxplot(Ames_df$Pool.Area,main="Box plot of Pool Area", range=3,outcol="red",col="cyan")$out
+Outlier_Value5 = boxplot(Ames_df$Total.Bsmt.SF,main="Box plot of Basement Size", range=3,outcol="red",col="orange")$out
+
+
+# Removing the outliers
+
+Remove_Val1 <- Ames_df$SalePrice[!Ames_df$SalePrice %in% boxplot.stats(Ames_df$SalePrice)$out]
+Remove_Val2 <- Ames_df$Garage.Area[!Ames_df$Garage.Area %in% boxplot.stats(Ames_df$Garage.Area)$out]
+Remove_Val3 <- Ames_df$Gr.Liv.Area[!Ames_df$Gr.Liv.Area %in% boxplot.stats(Ames_df$Gr.Liv.Area)$out]
+Remove_Val4 <- Ames_df$Pool.Area[!Ames_df$Pool.Area %in% boxplot.stats(Ames_df$Pool.Area)$out]
+Remove_Val5 <- Ames_df$Total.Bsmt.SF[!Ames_df$Total.Bsmt.SF %in% boxplot.stats(Ames_df$Total.Bsmt.SF)$out]
+
+#boxplot(Remove_Val1)
+#boxplot(Remove_Val2)
+#boxplot(Remove_Val3)
+#boxplot(Remove_Val4)
+#boxplot(Remove_Val5)
+```
+
+## Check the Regression Model for Multi-Collinearity
+```{r,comment=NA}
+library(carData)
+library(car)
+Multi_col_check <- glm(SalePrice ~ Year.Built + Gr.Liv.Area + Garage.Area +
+                       + Lot.Area,data = Ames_Dataset)
+summary(Multi_col_check)
+
+G<-summ(Multi_col_check, vifs = T)
+G                           #Reading the summary for Multi collinearity for the select variables   
+
+vif(Multi_col_check)
+
+vif_values <- vif(Multi_col_check)
+
+barplot(vif_values, main = "VIF Value Predictions", horiz = TRUE, col = "lightblue") + 
+  abline(v = 4, lwd = 3,lty = 3)   #Making a bar plot to understand the levels of multi collinearity
+
+```
+
+* Multi collinearity exists if the independent variables have a very high correlation.
+
+* VIF greater than 5 or 10 indicates that there is a very high multi collinearity.
+
+* VIF(Variance Inflation Function) function checks for multicollinearity 
+
+* A value of 1 tells that the variables don't have much correlation, 1-5 shows medium correlation and
+  >5 shows high correlation amongst the independent variables considered for regression analysis.
+
+## Conclusion and Analysis
+
+* The QQ plot is a measure to show if the variables are normally distributed or not.
+
+* We can remove Multicollinearity making the variables standard.
+  It is done by calculating the mean for each continuous independent variable and then subtracting
+  the mean from all observed variables. 
+
+## References
+
+* Residual Plot | R Tutorial. (2009). Copyright (C) 2009 - 2012 Chi Yau. All Rights Reserved.    
+  http://www.r-tutor.com/elementary-statistics/simple-linear-regression/residual-plot
+
+* GeeksforGeeks. (2020, July 14). Adding Straight Lines to a Plot in R Programming - abline()
+  Function. https://www.geeksforgeeks.org/adding-straight-lines-to-a-plot-in-r-programming-abline-fun   ction/ 
+
+* Scatter Plots - R Base Graphs - Easy Guides - Wiki - STHDA. (2021). Http://Www.Sthda.Com/.
+  http://www.sthda.com/english/wiki/scatter-plots-r-base-graphs
+  
+* Remove Outliers from Data Set in R (Example) | Find, Detect & Delete. (2021, January 18).
+  Statistics Globe. https://statisticsglobe.com/remove-outliers-from-data-set-in-r  
+
+* Understand the F-statistic in Linear Regression. (2021). Https://Quantifyinghealth.Com/.
+  https://quantifyinghealth.com/f-statistic-in-linear-regression/

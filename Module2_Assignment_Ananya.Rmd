@@ -1,0 +1,315 @@
+---
+title: 'Module 2- Ames Iowa Dataset- Inferential Analytics: Chi and Anova'
+author: "Ananya Sharma"
+date: "21/01/2022"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set
+devtools::source_gist("c83e078bf8c81b035e32c3fc0cf04ee8", 
+                      filename = 'render_toc.R')
+
+```
+
+```{r toc, echo=FALSE} 
+render_toc("Module2_Assignment_Ananya_test.Rmd")
+```
+
+## Installing the Packages
+
+* Combining all the packages, using pacman library and p_load function, in order to call all the
+  files. 
+  
+```{r comment=NA}
+
+#install.packages("ggplot2")
+#install.packages("tidyr")
+#install.packages("ggstatsplot")
+#install.packages("dplyr")
+#install.packages("purrr")
+#install.packages("magrittr")
+#install.packages("pacman")     
+#install.packages("rmarkdown")   # for running  table of contents
+#install.packages("yaml")
+install.packages("knitr")
+
+
+library(pacman)                                       # function to call all the packages at once
+                                                                
+p_load(ggplot2, dplyr,quantreg,ggstatsplot,tidyverse,purrr,magrittr,pacman,tidyr,rmarkdown)
+
+```
+
+## Read the file from the source 
+
+* Reading the source file into R Markdown Environment.
+
+```{r}
+getwd()
+Dataset_Ames<-read.csv("AmesHousing.csv")
+
+```
+
+## Introduction to the Ames Iowa Housing dataset
+
+* The Box plot below shows the median between Neighborhood and Sale Price.
+
+* Majority of the homes are priced at $1,70,000.(Median)
+
+* The data shows a lot of outliers as well in sales prices of a few neighborhoods like 
+  Crawford,Edwards, etc. 
+  
+* `The purpose` of this project is to find the chi square test and the the Two Way Anova test results   
+
+``` {r comment=NA, fig.cap=" Figure:Neighborhood Vs Saleprice EDA"}
+
+Dataset_Ames %>% ggplot(aes(factor(Neighborhood), SalePrice),fill=factor(Neighborhood)) + geom_boxplot() + xlab('Neighborhoods') + theme_light() + xlab("Neighborhoods")  + ggtitle("Neighborhood vs salesprice")+ theme(axis.text.x=element_text(size=8, angle=30))
+
+```
+
+## Quantile Division of Sales Price
+
+* We have used the cut function to distribute the Sale Price into five quantiles, namely
+  20th,40th,60th,80th and 100th percentiles.
+  
+* Creating a table that categorizes value according to the percentile of the Sales Prices and the 
+  frequency at which the neighborhoods are distributed according to the sales price.
+  
+* Several Neighborhoods like LandMrk, GrnHill have very less values and can be clubbed along with      other nearest neighborhoods, for a better chi square analysis.
+
+* `Difficulties faced:` It was difficult to look at the map and club the values, since the colors
+   were not demarcated sharply in the map.However, for a chi square test the expected cell count
+   must not be less than five. I faced issues in merging the cells and getting conclusive results
+   
+* Clubbing the columns also revealed that there was no significant difference to the value of the      chi square p value, hence I did not merge the cells.   
+  
+```{r comment=NA}
+Ames<-as.data.frame(Dataset_Ames)  
+
+Divisions<-cut(Ames$SalePrice,breaks=quantile(Ames$SalePrice,prob=c(0.0,0.20,0.40,0.60,0.80,1.0)),labels=c("P20","P40","P60","P80","P100"),include.lowest = TRUE) 
+
+#Divisions            #call
+ 
+#typeof(Divisions )          #type integer                                   
+
+Categorized_Ames<-data.frame(Divisions,Ames$Neighborhood)   #Converting to data frame
+
+#Categorized_Ames                  # call          
+
+#typeof(Categorized_Ames)      #Find the type of the variable
+
+d<-table(Categorized_Ames) # assigning the table to a variable d
+addmargins(d)  # For creating the sum total of all the columns that we created 
+```
+
+## Chi Square Test 
+
+* When you have two nominal variables and you wish to see if the variation of one variable is  
+  different from the other variable, we use the chi-square test of independence.
+
+* The cut function used above ensures that both the variables are categorical.(Meeting one of the
+  assumptions of the Chi square test.)
+
+* `Ho`: The Two variables- Sales Price and Neighborhood are independent.  
+
+* `H1`: The two variables- Sales Price and Neighborhood are not independent. 
+
+
+```{r comment=NA}
+Test_chi<-chisq.test(table(Categorized_Ames))
+
+Test_chi
+
+```
+* P value less than the significance value 0.05 indicates that we can reject the null hypothesis.
+
+* The degree of freedom in the chi square is also it's mean. So the mean of the distribution is 108.
+
+* `Difficulties Faced`: I tried to run the F test and the Bartlet test to check the variance between
+   the two variables but error cropped up stating that there must be atleast two observations in each    group.
+   
+## Adding Contingency Table in R
+
+* Contingency tables are not only useful in summarizing data but also for displaying relationships
+  between variables.
+
+* They are a method of combining category variables in one table format for further analysis.
+
+```{r comment=NA}
+
+ addmargins(table(Categorized_Ames)) 
+
+```
+
+## Mosiac Plot to see the distribution of categorical data
+
+*  This plot is done two show the relation between two categorical variables.
+
+*  In R Programming, the Mosaic Plot is highly useful for displaying information from a contingency     table.
+
+*  The relative value is represented by the height of the rectangle drawn by the R Mosaic Plots.
+
+* `Difficulties Faced`: The x label of the map is not very clear. Henceforth, I have not been able to    draw conclusive results from the plot.
+
+```{r comment=NA, fig.cap="Figure: Mosaic Plot"}
+mosaicplot(~  Ames.Neighborhood + Divisions , data = Categorized_Ames,
+           main = "SELL_CATEGORY VS Neighborhood", shade = TRUE) +  theme(axis.text.x.top = element_text(size=6, angle=90)) 
+
+```
+
+
+## Boxplot to check Homoscedasticity between Sale Price & Neighborhood.
+
+* Drawing a box plot between Sale Price and Neighborhood & Sale Price and Exterior 1 to check the 
+  homoscedasticity.(if the variance are equal or not). 
+  
+* Checking for homoscedasticity is one of the important assumptions before performing a two way        Anova. To further test this concept we can use the `Kruskal-Wallis` test.
+
+* The graph also shows that the two variables are normally distributed.(Another assumption for a 2     way Anova test)
+
+```{r comment=NA}
+ # Boxplot to understand the relation between Neighborhood and Sale Price 
+
+box_plot1 <- ggplot(Dataset_Ames, aes(x = Neighborhood, y =SalePrice, color=Neighborhood)) +
+
+             geom_boxplot()+ theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))
+box_plot1
+
+Box_plot2 <- Dataset_Ames %>% ggplot( aes(x = Exterior.1st, y =SalePrice, color=Exterior.1st)) + 
+   
+             geom_boxplot()+ theme(axis.text.x = element_text(angle=60, vjust=1, hjust=1)) 
+
+
+Box_plot2
+```
+<br>                                                            </br>
+
+* Both the graphs are roughly having similar variances.Henceforth, we can consider them while  
+  carrying out a two way Anova Test.
+
+## Contingency Table
+
+* Trying to merge the columns here which contain cell value less than five for the purpose of better   result.
+
+```{r comment=NA}
+
+Dataset_Ames$Neighborhood[Dataset_Ames$Neighborhood=='Greens']<-'NAmes'  # Trying to merge names column with the greens columns, since the former has less value. 
+
+table(factor(Dataset_Ames$Exterior.1st),factor(Dataset_Ames$Neighborhood))
+
+```
+
+## Two-Way Anova Test
+
+* A two way Anova is used to understand how two independent variables can affect the third dependent
+
+  variable and also if the independent variables themselves interact or not.
+
+* Two Way Anova with interaction checks the following three parameters:
+
+* At any frequency of the first independent variable, there is no difference in group means.(1^st)
+
+* At any frequency of the second independent variable, there is no change in group means.(2^nd)
+
+* One independent variable's influence is independent of the other independent variable's
+ influence.(3^rd)
+ 
+ Null Hypothesis:
+
+* Ho: There is no difference between the mean of Exteriors. 
+
+* Ho: There is no difference between the mean of Neighborhoods.
+
+* Ho: The effect of one independent variable does not depend on the effect of the other independent
+  variable.
+
+* With the two way Anova, we can study the effects of the levels of the individual independent 
+  variable on the dependent variable.
+  
+* Additionally, we can find out if the independent variables have an interaction amongst themselves.
+
+* The levels in the two independent variables have multiple factors, henceforth we use the two way     Anova for our plotting.The dependant variable is generally quantitative in nature.
+  If one of the independent variables is of Quantitative Nature we perform an ANCOVA test.
+
+```{r comment=NA, fig.cap="Figure: Anova Test"}
+# Anova test on Neighborhood and Exterior of the building
+
+ames_aov <- aov(SalePrice ~ factor(Exterior.1st)+factor(Neighborhood)+   factor(Neighborhood):factor(Exterior.1st), data = Dataset_Ames)
+summary(ames_aov)
+tukey.ames <- TukeyHSD(ames_aov)
+
+```
+
+* The p value is less than the significance value 0.05, hence forth we fail the null hypothesis.
+
+* A `tukey test` is done to understand if the values at the different levels of the variables are        different from one another or not.
+
+## Interaction Plot
+
+* When we want to see if two specific factors have an impact on the dependent variable, we utilize     the two-way ANOVA.
+* However, there is occasionally a significant interaction between the two factors, which might        influence how we understand the relationship between the factors and the response variable.
+
+* An interaction plot is the most straightforward method for detecting and comprehending interaction   effects between the two variables.
+
+```{r,fig.width=22,fig.align='center',fig.cap='Figure:Interaction Plot'}
+
+interaction.plot(x.factor = Dataset_Ames$Exterior.1st, #x-axis variable
+                 trace.factor = Dataset_Ames$Neighborhood, #variable for lines
+                 response = Dataset_Ames$SalePrice, #y-axis variable
+                 fun = median, #metric to plot
+                 ylab = "SalePrice",
+                 xlab = "Exterior",
+                 main="Interaction Plot- Neighborhood & Exterior with Sale Price",
+                 col = c("pink", "blue"),
+                 lty = 1, #line type
+                 lwd = 2, #line width
+                 pch= c(19), 
+                 type = 'b',
+                 trace.label = "Neighborhood")
+```
+
+* We can see from the above plot that there is a lot of interaction between the two                    variables-Neighborhood and Exterior. This validates why we rejected the Null Hypothesis as well.
+
+* Two way Anova reveals that the p value is less the 0.05 that means we can reject the null            hypothesis.
+
+  
+## Analysis & Conclusion
+
+* Chi-square tests can be divided into three categories: goodness of fit, independence, and  
+  homogeneity. To generate a test statistic, all three tests use the same methodology.
+  
+* Chi-square is most commonly employed by academics who are investigating survey response data since   it pertains to categorical variables. Demography, customer engagement research, public    
+  administration, and economics are all examples of this type of research.
+
+* When the requirements of equal variances and homoscedascity(`changes in variation of the mean`) are   violated and parametric statistics such as the t-test and ANOVA cannot produce reliable findings;    we can use the Chi-square to get conclusive analysis results.  
+
+
+## References:-
+
+* pacman Package in R (3 Examples) | p_load, p_unload & p_update. (2021, May 3). Statistics Globe.     https://statisticsglobe.com/pacman-r-package  
+
+* Changing Numeric Variable to Categorical in R | R Tutorial 5.4 | MarinStatsLectures. (2015, May      25). YouTube. https://www.youtube.com/watch?v=EWs1Ordh8nI
+
+* Density Plot in R with ggplot and geom_density() [R-Graph Gallery Tutorial]. (2021, May 7).  
+  YouTube. https://www.youtube.com/watch?v=FzfE8tfbpvQ
+  
+* Rhodes, E. (2020, March 31). What does degrees of freedom mean in chi-square? –  
+  Runyoncanyon-losangeles.com. Https://Runyoncanyon-Losangeles.Com/.  
+  https://runyoncanyon-losangeles.com/blog/what-does-degrees-of-freedom-mean-in-chi-square/ 
+  
+* Pedamkar, P. (2021, June 17). How to Interpret Results Using ANOVA Test? EDUCBA.  
+  https://www.educba.com/interpreting-results-using-anova/  
+  
+* two way anova in r interpretation at DuckDuckGo. (2019, October 12). [Video]. Two Way Anova in r 
+  Interpretation. https://duckduckgo.com/?q=two+way+anova+in+r+interpretation&atb=v1-1&iax=videos&     ia=videos&iai=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D7uR9c_yA0pE  
+
+* Smith, Z. M. (2020, March 2). 9 Lesson 4: YAML Headers | R Markdown Crash Course.
+  https://zsmith27.github.io/rmarkdown_crash-course/lesson-4-yaml-headers.html#table-of-contents-toc
+  
+* S. (2021, June 18). Mosaic Plot in R. Tutorial Gateway.  
+  https://www.tutorialgateway.org/mosaic-plot-in-r/  

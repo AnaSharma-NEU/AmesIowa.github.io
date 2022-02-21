@@ -1,0 +1,418 @@
+---
+title: "Module_4_Ananya"
+author: "Ananya Sharma"
+date: "04/02/2022"
+output:
+       html_document:
+           toc: TRUE
+           toc_float: TRUE
+           theme: cerulean
+---
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("logo.png")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)    # for mathematical functions
+library(magrittr)    # for %>%
+library(DescTools)     # For making tables 
+library(vcd)                       #for table
+library(effects)                         # For plotting the effect curve
+library(caret)                 # For plotting regression model
+library(ggplot2)                   # for plotting graphs
+library(gridExtra)                     
+library(pROC)                         # for plotting AUC curve
+```
+
+## Introduction
+
+* We are using the Ames Housing data set here to understand how logistic regression
+  works.
+  
+* The binary logistic regression model does not have the limitations of linear          regression model.
+
+* The key benefit of logistic regression over other machine learning and AI
+  implementations is that it is significantly easier to set up and train. 
+  
+* When the results or contrasts represented by the data are linearly separable, 
+  it is also one of the most efficient methods.
+
+```{r,comment=NA,include=FALSE}
+
+#Read the file
+
+Ames_dataset=read.csv("AmesHousing.csv")  
+
+#psych::describe(Ames_dataset)
+
+Ames_house<-as.data.frame(Ames_dataset)   # Converting to a data frame
+
+#class(Ames_house)
+```
+
+## Create a Response variable that is greater than 200000
+
+* Sub setting the data set, extracting values of Sale Price of homes that are greater   than 2,00,000.
+* Assigning value 1 if the price is greater than 2,00,000 else allocating binomial 
+  value of 0 for the purpose of performing Logistic regression.
+
+```{r,comment=NA}
+Ames_house<-Ames_house %>% mutate(House_Price=ifelse(SalePrice>200000,1,0))
+
+```
+
+* Training and testing the data. The test and train is usually divided into 70:30  
+  ratio.
+  It can also be divided into .75-.25 and .65-.35
+
+## Logistic Regression
+
+* Logistic Regression helps to determine, if the relation between the response 
+  variables and the indicator variables are statistically significant.
+  
+### Finding the Best Fit Model  
+
+```{r,comment=NA}
+
+#1
+logit.model <- glm(House_Price ~ Gr.Liv.Area + Overall.Cond + factor(Central.Air) +
+                     Exterior.1st+Bldg.Type,
+                   data = Ames_house, family = binomial(link = "logit"))
+summary(logit.model)
+
+```
+
+* The AIC is around 1894.5. The AIC can be reduced further.
+
+* Exploring fitting more variables to get a better AIC.
+
+```{r, comment=NA}
+#2
+
+logit.model <- glm(House_Price ~ Gr.Liv.Area + Overall.Cond + factor(Central.Air) +
+                     Exterior.1st+Bldg.Type + Lot.Frontage + Neighborhood,
+                   data = Ames_house, family = binomial(link = "logit"))
+summary(logit.model)
+
+```
+
+* The AIC has been reduced to 1089.
+* From the model, we infer that Gr.Liv,Area and Overall.Cond are significant variables   for fitting the regression model.
+
+```{r,comment=NA}
+#3
+logit.model <- glm(House_Price ~ Gr.Liv.Area + Overall.Cond + factor(Central.Air) +
+                     Exterior.1st+Bldg.Type + Lot.Frontage + Neighborhood+ Year.Built+MS.Zoning,data = Ames_house, family = binomial(link = "logit"))
+summary(logit.model)
+
+```
+
+* The AIC has reduced to 1042.2
+* The model above shows that Year Built and Neighborhood -Greens and Nridght are
+  statistically significant.( Three stars indicate a good significant variable)
+* The difference between Null Deviance(2915.62) and Residual Deviance( 930.23)
+  is X^2.
+  X^2= 985.39
+* The X^2 and p=9 predictor variables can be put to a chi square score to P value       Calculator. `The P-Value is < .00001. The result is significant at p < .05.`
+
+### Optimized Model
+
+* A few exterior features variable are the Neighborhood, Fence,Exterior Condition,
+  Exterior Quality, Mansion Veneer Area, Over all quality of the house etc.
+* A few features that define the interior features of the house are Fireplace,
+  Basement Quality,Basement Finish, Kitchen Quality etc.
+* A few features defining the Location features of a house are Lot Area, Lot Frontage,
+  Sub Class etc.
+
+```{r,comment=NA}
+    
+#5
+
+logit.model <- glm(House_Price ~ Gr.Liv.Area+Year.Built+Fireplaces+Garage.Area+
+                     Bsmt.Qual+BsmtFin.SF.1+ Lot.Area+ Street+ factor(Kitchen.Qual)+                      Sale.Condition+ House.Style+Exter.Cond+MS.SubClass+Fence+ 
+                    factor(Exter.Qual)+Exterior.1st+Neighborhood+Full.Bath+
+                     Lot.Frontage+Mas.Vnr.Area+Overall.Cond+ Overall.Qual,
+                   data = Ames_house, family = binomial(link = "logit"))
+summary(logit.model)
+
+```
+
+* We have taken a lot of predictor variables into account and are trying to find which   variable decides the best Response variable.Initially when we considered a few        variables, the AIC was 2265, and several independent variables were fitted to get a
+  better model. 
+* The AIC is 148, lower AIC may indicate a good model, however, we must plot graphs
+  between individual variables to find out which variable can be considered while 
+  fitting a logistic model.
+* The p value is quite less than the significance value, henceforth we can consider     the variables towards predicting the probability of Sale of a house in Ames, Iowa.
+* 25 Fisher Scoring Iteration indicates the number of iterations needed to build a      successful model.
+
+### Understand ROC and Area Under the Curve
+
+```{r, echo=FALSE, fig.cap="Area Under the curve", out.width = '100%'}
+knitr::include_graphics("AUC.png")
+```
+
+* AUC ranges from 0.9-1.00 are considered Excellent.
+* The first graph is a good model, whereas the second model is a poor classifying       model. 
+
+## Train and Test the Data
+
+```{r,comment=NA}
+
+trainIndex <-createDataPartition(Ames_house$House_Price, p=0.70, list = FALSE)
+train <- Ames_house[trainIndex,]
+test <- Ames_house[-trainIndex,]
+
+#1 House Price and Mason Veneer Area(Exterior Feature)
+model1 <- glm(House_Price  ~ Mas.Vnr.Area, data = train, family = binomial(link = "logit"))
+summary(model1)
+coef(model1)
+exp(coef(model1))
+
+probablilities.train <-predict(model1, newdata = train, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+
+
+probablilities.test <-predict(model1, newdata = test, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+
+ROC1 <- roc(test$House_Price, probablilities.test)
+
+plot(ROC1, col= "blue", ylab="Sensitivity", xlab = "Specificity") #plot the graph
+
+auc <- auc(ROC1)
+auc
+
+pred_logodds <- predict(model1, test)
+
+pred_odds <- exp(pred_logodds)
+
+probs <- pred_odds/(1+pred_odds)
+
+pred_probs <- predict(model1, test, type = 'response')
+
+#2 House Price and Fence( Exterior Feature) 
+
+model2 <- glm(House_Price~ Fence, data = train, family = binomial(link = "logit"))
+summary(model2)
+
+coef(model2)
+
+exp(coef(model2))
+
+#summary(train$House_Price)
+
+probablilities.train <-predict(model2, newdata = train, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+
+
+probablilities.test <-predict(model2, newdata = test, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+
+
+ROC2 <- roc(test$House_Price, probablilities.test)
+
+plot(ROC2, col= "blue", ylab="Sensitivity", xlab = "Specificity")
+
+auc <- auc(ROC2)
+auc
+
+pred_logodds <- predict(model2, test)
+
+pred_odds <- exp(pred_logodds)
+
+probs <- pred_odds/(1+pred_odds)
+
+pred_probs <- predict(model2, test, type = 'response')
+
+#3 House Price and Kitchen ( interior Feature)
+ 
+model3 <- glm(House_Price~Kitchen.Qual , data = train, family = binomial(link = "logit"))
+summary(model3)
+
+coef(model3)
+
+exp(coef(model3))
+
+#summary(train$House_Price)
+
+probablilities.train <-predict(model3, newdata = train, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+
+
+probablilities.test <-predict(model3, newdata = test, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+
+
+ROC3 <- roc(test$House_Price, probablilities.test)
+
+plot(ROC3, col= "blue", ylab="Sensitivity", xlab = "Specificity")
+
+auc <- auc(ROC3)
+auc
+
+pred_logodds <- predict(model3, test)
+
+pred_odds <- exp(pred_logodds)
+
+probs <- pred_odds/(1+pred_odds)
+
+pred_probs <- predict(model3, test, type = 'response')
+
+#4 House Price and Full Bath
+
+model4 <- glm(House_Price~Full.Bath , data = train, family = binomial(link = "logit"))
+summary(model4)   # Summarised model expansion
+
+coef(model4)
+
+exp(coef(model4))
+
+#summary(train$House_Price)
+
+probablilities.train <-predict(model4, newdata = train, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+
+
+probablilities.test <-predict(model4, newdata = test, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+
+
+ROC4 <- roc(test$House_Price, probablilities.test)
+
+plot(ROC4, col= "blue",ylab="Sensitivity", xlab = "Specificity")
+
+auc <- auc(ROC4)
+auc
+
+pred_logodds <- predict(model4, test)
+
+pred_odds <- exp(pred_logodds)
+
+probs <- pred_odds/(1+pred_odds)
+
+pred_probs <- predict(model4, test, type = 'response')
+
+#5 House Price and Location
+
+model5 <- glm(House_Price~ Neighborhood , data = train, family = binomial(link = "logit"))
+summary(model5)   # Summarised model expansion
+
+coef(model5)
+
+exp(coef(model5))
+
+summary(train$House_Price)
+
+probablilities.train <-predict(model5, newdata = train, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+
+probablilities.test <-predict(model5, newdata = test, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+
+
+ROC5 <- roc(test$House_Price, probablilities.test)
+
+plot(ROC5, col= "blue", ylab="Sensitivity", xlab = "Specificity")
+
+auc <- auc(ROC5)
+auc
+
+pred_logodds <- predict(model5, test)
+
+pred_odds <- exp(pred_logodds)
+
+probs <- pred_odds/(1+pred_odds)
+
+pred_probs <- predict(model5, test, type = 'response')
+
+
+#6
+
+model6 <- glm(House_Price~ Year.Built , data = train, family = binomial(link = "logit"))
+summary(model6)   # Summarised model expansion
+
+coef(model6)
+
+exp(coef(model6))
+
+probablilities.train <-predict(model6, newdata = train, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+
+probablilities.test <-predict(model6, newdata = test, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+
+
+ROC6 <- roc(test$House_Price, probablilities.test)
+
+plot(ROC6, col= "blue", ylab="Sensitivity ", xlab ="Specificity")
+
+auc <- auc(ROC6)
+auc
+
+pred_logodds <- predict(model6, test)
+
+pred_odds <- exp(pred_logodds)
+
+probs <- pred_odds/(1+pred_odds)
+
+pred_probs <- predict(model6, test, type = 'response')
+
+```
+
+
+## Computing Odds Ratio  
+
+```{r, comment=NA}
+
+OddsRatio(table(Ames_house$Central.Air,Ames_house$House_Price))
+
+OddsRatio(table(Ames_house$Street,Ames_house$House_Price))
+
+```
+
+* The Odds of have Central Air Duct increases the Price of the House by 14% .
+
+* The odds of a house having street which may have gravel or paved affects the house    to the tune of 4%. 
+
+```{r,comment=NA}
+
+assocstats(table(Ames_house$Year.Remod.Add, Ames_house$House_Price))
+assocstats(table(Ames_house$Neighborhood,Ames_house$House_Price))
+
+```
+* The Cramer's V shows that Year of Remake of the house has a strong affect on the      Sale Price of the  house.
+
+* The Neighborhood is a strong factor that affects the sale Price of house.
+
+## Summary
+
+* In Logistic Regression, the response variables in logit models are log based.
+  Hence, we have to take their exponent so as to convert them back to probability       ratios.
+* ROC Curve and Area under the curve plot is used to find out the performance for a     binary classifier. A good predictor variable must be drawn closer to one.
+* Mason Veneer Area is not a very strong predictor variable, the area under the curve 
+  holds a very less value.
+* Kitchen Quality and Neighborhood are strong Predictor variables.
+* Year the house was built and the Full Bath are moderate predictors towards deciding   the best fit model and deriving a dependent response variable.
+
+## Reference: 
+
+* Interpretation of R’s output for binomial regression. (2014, February 12). Cross
+  Validated.https://stats.stackexchange.com/questions/86351/interpretation-of-rs-outp   ut-for-binomial-regression
+
+* LaBarr, D. (2021, September). Logistic Regression. Https://Www.Ariclabarr.Com/.
+  Retrieved February 7, 2022.
+  
+* Quick P Value from Chi-Square Score Calculator.
+  (2018)https://www.socscistatistics.com/pvalues/chidistribution.aspx  
+
+* Deviance in the Context of Logistic Regression. (2017).
+  https://quantifyinghealth.com/deviance-in-logistic-regression/  
+  
+* Bartlett, J. (2014, August 25). Area under the ROC curve – assessing discrimination
+ in logistic regression. The Stats Geek 
+ https://thestatsgeek.com/2014/05/05/area-under-the-roc-curve-assessing-discriminatio
+ n-in-logistic-regression/  

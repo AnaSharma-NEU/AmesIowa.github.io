@@ -1,0 +1,218 @@
+---
+title: "Project5_Ananya_Lasso"
+author: "Ananya Sharma"
+date: "17/02/2022"
+output: 
+        html_document:
+          toc: TRUE
+          toc_float: TRUE
+          theme: cerulean
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("MASS")
+#install.packages("glmnet")
+#install.packages("repr")
+library(plyr)
+library(readr)
+library(dplyr)
+library(caret)
+library(ggplot2)
+library(repr)
+library(glmnet)
+library(MASS)
+
+```
+
+## Precursor
+
+* I have taken the third part of the IBM data set here to try and test if I get a
+  comparatative result.
+
+```{r,comment=NA}
+
+Third_part_ibm<-read.csv("File_three.csv")
+
+Data_third_ibm<-as.data.frame(Third_part_ibm)
+
+#glimpse(Data_third_ibm)
+
+```
+
+## Introduction
+
+* We'll utilize the glmnet package's methods to do lasso regression. The response 
+* variable must be a vector, and the collection of predictor variables must be of the
+* class data.matrix.
+
+```{r,comment=NA}
+# making test and train data set
+set.seed(100)   #random 100 numbers
+
+index = sample(1:nrow(Data_third_ibm), 0.7*nrow(Data_third_ibm))
+
+#creating a train and test with 70:30 ratio test to train 
+Data_third_ibm$Attrition<- ifelse(Data_third_ibm$Attrition=="Yes", 1, 0)
+
+Data_third_ibm$Attrition <-as.numeric(Data_third_ibm$Attrition)
+
+train = Data_third_ibm[index,] # Create the training data 
+test = Data_third_ibm[-index,] # Create the test data
+
+dim(train)                  # dimensions- rows and columns of train data set
+dim(test)                     # dimensions- rows and columns of test data set
+
+```
+
+* The dimension of train data set is some where around 11667 columns and 35 rows
+* The dimension of test data set is 5001 columns and 35 rows
+
+## Scaling the dimensions
+
+* Reducing the numerical dimensions for fiting in the model else it will not work
+  correctly.
+
+```{r,comment=NA}
+
+#glimpse(Data_third_ibm)
+
+cols = c('YearsWithCurrManager','Age','DistanceFromHome','Attrition','DailyRate',
+          'Education','EnvironmentSatisfaction','JobInvolvement',
+         'MonthlyIncome','PerformanceRating','RelationshipSatisfaction', 
+         'StandardHours', 'StockOptionLevel','PercentSalaryHike',
+         'TotalWorkingYears', 'TrainingTimesLastYear', 'WorkLifeBalance',
+         'YearsAtCompany','YearsInCurrentRole', 'YearsSinceLastPromotion'
+         )
+
+pre_proc_val <- preProcess(train[,cols], method = c("center", "scale"))
+
+train[,cols] = predict(pre_proc_val, train[,cols])
+test[,cols] = predict(pre_proc_val, test[,cols])
+
+summary(train)
+
+```
+
+* In the above output `monthly rate` has not been subjected to the model and hence  
+  does not show a negative value.
+  
+* Remaining others have been regularised and hence show a lesser value in their mean.  
+  
+```{r, comment=NA}
+#Use the cv.glmnet function to estimate the lambda.min and lambda.1se values. 
+#Compare and discuss the values.
+
+
+x = as.matrix(train[,c(1,4,6,7,11,13,15,17,19,20,24,25,26,27,28,29,30)])
+dim(x)
+y = train$Attrition
+x_test = as.matrix(test[, c(1,4,6,7,11,13,15,17,19,20,24,25,26,27,28,29,30)])
+y_test = test$Attrition
+
+```
+  
+  
+## Fitting the ridge model  for a select few columns
+
+```{r,comment=NA}
+
+ridge_reg = cv.glmnet(x, y, nlambda = 25, alpha = 0, family = 'gaussian')
+summary(ridge_reg)
+
+```
+## Creating a plot for lasso regression
+
+```{r,comment=NA}
+
+print(ridge_reg$lambda.min)
+
+
+print(ridge_reg$lambda.1se)
+
+plot(ridge_reg)
+
+
+```
+* The above model shows that the values are increasing exponentially, thereby showing
+  that it is a good fit.
+```{r,comment=NA}
+
+
+#4. Fit a Ridge model against training set and report on the coefficients. 
+
+best_lam <- ridge_reg$lambda.min
+ridge_reg_fit = glmnet(x, y, nlambda = 25, alpha = 0, family = 'gaussian', lambda = best_lam)
+
+ridge_reg_fit$beta   # we are using the beta mode to test the values
+
+
+```
+* Determine the performance of the fit model against the training set by calculating    the root   
+
+```{r,comment=NA}
+
+#mean square error (RMSE). sqrt(mean((actual - predicted)^2))
+
+# Using the training set to calculate training set
+pred=predict(ridge_reg_fit,s=best_lam ,newx=x)
+#Calculating Accuracy
+MSE=mean((pred-y)^2)
+#Printing root MSE
+print(sqrt(MSE))
+```
+* Fit the model against the test set and understand the root.
+  
+```{r,comment=NA}
+
+
+#root mean square error (RMSE). Is your model overfit?
+
+#Fitting training model on test set
+pred=predict(ridge_reg_fit,s=best_lam ,newx=x_test)
+#Calculating Accuracy
+MSE=mean((pred-y_test)^2)
+#Printing root MSE
+print(sqrt(MSE))
+
+```
+
+
+```{r,comment=NA}
+
+
+## LASSO MODEL
+
+## fit the model
+lasso_reg = cv.glmnet(x, y, nlambda = 25, alpha = 1, family = 'gaussian')
+
+summary(lasso_reg)
+## lambda min
+print(lasso_reg$lambda.min)
+
+## lambda 1se
+print(lasso_reg$lambda.1se)
+
+plot(lasso_reg)
+```
+
+```{r,comment=NA}
+
+
+#Fit Lasso model for the training data and check if any values are reduced to zero.
+#Do any coefficients reduce to zero? If so, which ones?
+lasso_b_lam <- lasso_reg$lambda.min
+lasso_reg_fit = glmnet(x, y, nlambda = 25, alpha = 1, family = 'gaussian', lambda = lasso_b_lam)
+
+lasso_reg_fit$beta
+
+```
+
+## References:
+
+* Singh, D. (2019, November 12). Linear, Lasso, and Ridge Regression with R.
+  Pluralsight. https://www.pluralsight.com/guides/linear-lasso-and-ridge-regression-w
+  ith-r
+
+

@@ -1,0 +1,292 @@
+---
+title: "Module 1"
+author: "Ananya Sharma"
+date:   "15/01/2022"
+output:
+   
+     html_document:
+           toc: TRUE
+           toc_float: TRUE
+           theme: cerulean
+  
+---
+
+```{r setup, include=FALSE, cache=TRUE,error=TRUE}
+ options(repos = list(CRAN="http://cran.rstudio.com/"))
+ knitr::opts_chunk$set(echo = TRUE)
+ 
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("magrittr")
+library(magrittr)
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("psych")
+#install.packages("psych", repo="http://cran.r-project.org", dep=T)
+library(psych)
+#install.packages("tidyverse")
+library(tidyverse)
+#install.packages("reshape")
+library(reshape)
+#install.packages('broom')
+library(broom)
+#install.packages('fastDummies')
+library(fastDummies)
+#install.packages("ggcorrplot")
+library(ggcorrplot)
+#install.packages("tidyr")
+# install.packages("broom")
+ library(broom)
+```
+ 
+
+## Ames Iowa Data Set- Introduction
+
+* This data set contains data on 2931 real estate properties around Ames Iowa and 82    columns describing the property. 
+* There are many qualities of a real estate that determine its net worth.    
+* In this data set, we are exploring correlation and the parameters that helps people   to understand which variables are the most suitable factors while purchasing a
+  house.
+* The data set has a lot of nominal and ordinal variables which can be converted to
+  meaningful visualizations.
+* We are performing correlation analysis and Descriptive analytics in this Module.
+
+## Reading the data set:
+
+```{r }
+ getwd()   # Understanding where the file has been saved in the system
+ Housing_dataset<-read.csv("AmesHousing.csv")
+
+#Convert to dataframe
+
+Ames_House<-as.data.frame(Housing_dataset)       #Reading the dataset into a variable
+
+```
+## Describing the Data Set
+
+* Using the Summary function, we are able to understand that mean Sale Price of Iowa
+  House is `$1,80,000` tentatively, whereas the median price of the house is
+ `$1,60,000`.
+* The dataset has lot of values that are not available, has been left blank or filled
+  with zero's and one's in plenty.
+
+## Using Descriptive Statistics for Analysis
+```{r,comment=NA}
+
+psych::describe(Ames_House)
+
+```
+
+# Exploratory Data Analysis
+
+## Histogram
+
+* The data is right skewed.The Histogram indicates that the houses that are cheap are   sold more often as compared to the houses that have more price.
+
+* The sale price feature has been log performed to avoid using negative Sales Price.  
+  The median Sales price of houses is around 160000. It is also shown by the line  
+  going across through the histogram.
+
+```{r,comment=NA}
+ library(magrittr)
+ library(ggplot2)
+ Histogram_House<-Ames_House %>% ggplot(aes(x=SalePrice,fill=Sale.Condition)) + 
+ geom_histogram() +
+ geom_density(alpha=.2, fill="White") + geom_vline(aes(xintercept=mean(SalePrice)),
+            color="black", linetype="dashed", size=1)+ ylab("Frequency")+ xlab("Price of Houses")
+ Histogram_House
+```
+
+
+#Boxplot of Sales Price
+
+* Box plot on the sales Price shows that there are a lot of outliers in Sales Vale of    the data set and it has to be cleaned.
+
+```{r,comment=NA}
+    Ames_House %>% ggplot(aes(x=SalePrice)) +
+     geom_boxplot(fill='pink')+
+     theme( legend.position = "none" ) + theme_light()
+```
+
+## Creating a Scatter Plot to understand which Neighbourhood has good land value
+
+* We are able to understand from the graph that Noridght and Names have Expensive       Property Prices.
+* Old Town has Less expensive property prices.
+* Names has around 400 properties whereas Grn hill has 2 properties based out of that
+  region.
+
+```{r,comment=NA}
+
+table(Ames_House$Neighborhood)
+Ames_House %>% ggplot( aes(x = SalePrice,y=Neighborhood, color=Neighborhood)) + 
+geom_point(alpha=0.2) + xlab("Sales Price of House") + ylab("Neighbourhoods") +
+ggtitle("Price Vs Neighbourhoods") + scale_x_log10()+ theme_light()
+
+```
+
+## Boxplot- Sale Price vs Ms Zoning & House Style
+
+* The Box plot does a Bi-Variate Analysis where we plot the value of Sale Price vs the   zone areas.
+* The areas are zoned as Residential, Agricultural, Industrial, Commercial and   
+  Village.
+* The graph shows that Village Property is more expensive as compared to Commercial
+  Property.
+* Agricultural Property has the least property value. 
+* The second box plot shows that the unfinished units have the lowest value.
+* All the units are priced between `$1,00,000` to `$3,00,000`.
+
+```{r,comment=NA}
+table(Ames_House$MS.Zoning)   #Using the table function to Understand the count of categorical data
+
+  ggplot(Ames_House, aes(x = MS.Zoning, y = SalePrice, fill = MS.Zoning)) + 
+  geom_boxplot(alpha=0.4) + theme(legend.position="top")+ ggtitle("Zone Vs Sale Price") +
+  stat_summary(fun = "mean", geom = "point", shape = 6,size = 1)
+  
+  table(Ames_House$House.Style)  # Understand the count of House Styles
+
+  ggplot(Ames_House, aes(x = House.Style, y = SalePrice, fill = House.Style)) + 
+  geom_boxplot(alpha=0.3) + theme(legend.position="right")+ ggtitle("House Style vs Sale Price") +
+  stat_summary(fun = "mean", geom = "point", shape = 1,size = 2) 
+
+```
+
+# Stacked Bar Plot. 
+
+* Major of the real estate properties have Good Basement Quality and Typical
+  Structure.
+
+```{r, echo=FALSE,comment=NA}
+Ames_House %>% ggplot( aes(x = Bsmt.Cond, fill = Bsmt.Qual),position = position_dodge(preserve = 'single')) +geom_bar()+ xlab("Basement Condition") +ylab("Frequency")
+```
+
+##Analyzing Correlation
+
+* From the subset of Numerical and Continuous values taken from the Ames Housing data
+  set we find      that Over all Quality of the House(0.799) and Gr Living area(0.706)
+  have a Strong Correlation with Sale Price.
+* Sale Price and Fireplace have a weak correlation with 0.558 degrees of relationship 
+* Sale Price and Screen Porch has a super weak relationship(0.11)
+
+```{r,echo=FALSE, comment=NA}
+library(ggcorrplot)
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+
+#Creating Subset for analyzing correlation amongst the variables
+colnames(Ames_House)    #To check which variables we can take for corrplot
+#Considering a few numerical values 
+c<-subset(Ames_House,select=c(SalePrice,Year.Built,Screen.Porch,Overall.Qual,Lot.Area,Fireplaces,Gr.Liv.Area))
+MyCorr1<-as.data.frame(cor(c))  #Converting to a data frame
+                 
+cor(MyCorr1)
+ggcorrplot(cor(c),method = "circle",
+                       title = "Correlation Plot:Table for Numerical Data"
+                       ,type = "upper",
+                       lab = TRUE)
+
+y<-rbind(cbind(Description = "Lot Area and sale price",
+               tidy(cor.test(Ames_House$SalePrice,Ames_House$Lot.Area))),
+               cbind(Description = "Overall Quality and Sale Price",
+               tidy(cor.test(Ames_House$SalePrice, Ames_House$Overall.Qual
+                             ))))  %>%
+  dplyr::select(Description,R = estimate, p.value, statistic , conf.low, conf.high) %>%
+  mutate(
+    R = round(R,3),
+    statistic = round(statistic,3),
+    conf.low = round(conf.low,3),
+    conf.high = round(conf.high,3)
+  )
+
+print(y)
+
+```
+
+## Plotting Heat Map
+
+* The categorical value have to be converted to factors or dummy variables with 
+  nominal values before  plotting graph or correlation. However we must avoid
+  categorical values for getting the correlation.
+* Not a very clear plot, however, it sets the pace for further analysis.
+
+```{r,comment=NA}
+# Coverting the ordinal variables to factors
+Ames_House$Exter.Cond <-  as.numeric(factor(Ames_House$Exter.Cond, 
+                                  levels = c("Ex", "Fa","Gd", "TA","Po"),
+                                  labels = c(5,2,4,3,1) ,ordered = TRUE))
+
+Ames_House$Heating.QC <-  as.numeric(factor(Ames_House$Heating.QC, 
+                                  levels = c("Ex", "Fa","Gd", "TA","Po"),
+                                  labels = c(5,2,4,3,1) ,ordered = TRUE))
+Ames_House$Central.Air <- as.numeric(factor(Ames_House$Central.Air, 
+                                  levels = c("N", "Y"),
+                                  labels = c(0,1) ,ordered = TRUE))
+
+model_var <- c('SalePrice', 
+                'Overall.Qual','Exter.Cond','Overall.Cond','Total.Bsmt.SF','Heating.QC', 
+                'Central.Air','Gr.Liv.Area','Bedroom.AbvGr','Kitchen.AbvGr',
+                'TotRms.AbvGrd','Garage.Area','Open.Porch.SF','Yr.Sold')
+
+heat <- Ames_House[,model_var]
+
+options(repr.plot.width=8, repr.plot.height=6)
+
+qplot(x=X1, y=X2, data=melt(cor(heat, use="p")), fill=value, geom="tile") +
+   scale_fill_gradient2(low = "Blue", high = "pink", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Correlation") +
+   theme_minimal()+ 
+   theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 8, hjust = 1))+
+   coord_fixed()+
+   ggtitle("Figure 7 Correlation Heatmap") +
+   theme(plot.title = element_text(hjust = 0.3))
+```
+## Heat Map for Numerical Dataset
+
+* This heat map shows the correlation of all numerical variables.
+* This is not a very clean map but it sets the overall sentiment as to which variable
+  could be strongly related and which one would have weak correlation via a graphical
+  representation.
+  
+```{r,comment=NA}
+#using the plotly function to plot the graph
+
+library(plotly)
+library(reshape2)
+  AmesData_Numeric_Vals=Ames_House%>%
+  dplyr::select_if(is.numeric)%>%   #converting values to numeric
+  drop_na()
+  Analyse_Data=cor(AmesData_Numeric_Vals)             
+  Analyse_melt=melt(Analyse_Data)     #Converting the value from categorical to numerical
+  Correlation_Ames=ggplot(Analyse_melt,mapping=aes(x=X1,y=X2,fill=value))+
+  geom_tile()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  theme(text = element_text(size=9))+
+  ggtitle("Heat Map for Ames Iowa Housing Data")+
+  ylab("All the factors that are numeric in nature")+
+  xlab("All the factors that are numeric in nature")+
+  scale_fill_distiller(palette = "BuPu")
+  ggplotly(Correlation_Ames, tooltip="text")
+
+```
+## Analysis:  
+
+* The data contains 78 prediction variables that pertain to various aspects of an Ames
+  home.Continuous, discrete, nominal, and ordinal types are some of these attributes.
+  There are 44 category variables, with 21 nominal and 23 ordinal elements.
+
+* The Sales Price has a very strong correlation with Overall Quality of the house and
+  Fireplaces has a weak correlation.    
+
+## References:
+
+* ggplot2 histogram plot : Quick start guide - R software and data visualization - 
+  Easy Guides - Wiki - STHDA. (2018).
+  http://www.sthda.com/english/wiki/ggplot2-histogram-plot-quick-start-guide-r-softwa
+  re-and-data-visualization  
+
+* Coder, R. (2021, November 14). Heat map in ggplot2. R CHARTS | A Collection of
+  Charts and Graphs Made with the R Programming Language. 
+  https://r-charts.com/correlation/heat-map-ggplot2/
+
+* GeeksforGeeks. (2021, December 15). Box plot in R using ggplot2.
+  https://www.geeksforgeeks.org/box-plot-in-r-using-ggplot2/
