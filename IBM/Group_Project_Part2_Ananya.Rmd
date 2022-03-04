@@ -1,0 +1,389 @@
+---
+title: "Group_Project 3&4"
+author: "Ananya Sharma"
+date: "07/02/2022"
+output: 
+      html_document:
+           toc: TRUE
+           toc_float: TRUE
+           theme: cerulean
+           
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+library(pROC)          # For the AUC Curve
+library(ggcorrplot)
+library(ggplot2)                 # For plotting graphs
+library(stats)                 # For 
+library(carData)  #For checking the multi-collinearity 
+library(car)   
+library(broom)   # For summ function for understanding multicollinearity
+library(jtools)   # for summ function so as to analyse multicollinearity
+library(sjPlot) # For plotting the effect plot 
+library(effects) # For effect plot
+
+```
+
+```{r, echo=FALSE}
+
+knitr::include_graphics("logo.png")
+
+```
+
+
+```{r,comment=NA, include=FALSE}
+
+Dataset_read<-read.csv("File_one.csv")   #read
+
+Data_ibm<-as.data.frame(Dataset_read)   #convert to data frame
+
+#psych:: describe(Data_ibm)
+#str(Data_ibm)                        # to understand which variable is factor or not 
+```
+
+## INTRODUCTION
+
+* `Purpose:` The purpose is to understand what factors cause attrition amongst the        employees of IBM, using logistic model method.
+
+* Creating a corr plot to get a general idea of the correlation amongst the different
+  variables.
+
+```{r,comment=NA,fig.cap="Figure:Correlation of various response variables for the indicator variable"}
+
+Ibm_corr= subset(Data_ibm, select=c(DistanceFromHome,JobSatisfaction,WorkLifeBalance, YearsSinceLastPromotion,YearsWithCurrManager,StockOptionLevel,DailyRate,YearsInCurrentRole,Education))
+
+#Ibm_corr
+
+X1<-na.omit(Ibm_corr)     # removing NA Values
+
+corplotting <- cor(X1) 
+
+ggcorrplot((round(corplotting,2)),
+           colors = c("lightgreen", "steelblue", "red"),lab = TRUE,lab_size =2.5) +
+  ggtitle("Correlation amongst predictor variables") 
+
+```
+
+* The corr plot shows that almost all the variables are showing a negligible            correlation with each other.However, years in current role has a slight correlation
+  to the tune of 0.56 with the Years with last promotion an year with the current
+  manager.
+
+## Regression Analysis
+
+* change the data type of the dependent variable `Attrition` from categorical to         numerical.
+
+```{r,comment=NA}
+# Converting to zeros and one
+
+Data_ibm$Attrition<- ifelse(Data_ibm$Attrition=="Yes", 1, 0)
+
+Data_ibm$Attrition <-as.numeric(Data_ibm$Attrition) 
+
+
+#class(Data_ibm$Attrition)
+#typeof(Data_ibm$Attrition)
+```
+
+### Data Wrangling
+
+* Converting Categorical variables to Factors 
+
+```{r,comment=NA}
+#Converting the character type variables into 
+Data_ibm[,c(3,5,8,12,16,18,23)]=lapply(Data_ibm[,c(3,5,8,12,16,18,23)],as.factor)
+
+Data_ibm$Over18[Data_ibm$Over18=="Y"]=1
+Data_ibm$Over18=as.numeric(Data_ibm$Over18)
+#Data_ibm
+```
+
+### Creating sample -Train data and Test data
+
+* Modulating the ibm data set to create Test and Train data conditions.
+* Taking  probabilities as 0.65 and 0.35 for the purpose of test and train 
+
+```{r,comment=NA}
+
+set.seed(1000)    # setting random seeds
+test_sample=sample(x=c("Training","Testing"),size=nrow(Data_ibm),replace=T,prob=c(0.75,0.25))
+TrainingData=Data_ibm[test_sample=="Training",]
+TestingData=Data_ibm[test_sample=="Testing",]
+nrow(TrainingData)          # count of training dataset
+nrow(TestingData)            # count of test dataset
+
+```
+
+* Obtained 12511 Training data & 4155 Testing data.
+
+## Building Model
+
+* Understand the independent variables.
+* Utilize the dependent variable- Attrition in the model.
+* Checking the model with all the variables. 
+
+```{r,comment=NA}
+# Taking all the variables for analysis
+logit.model <- glm(Attrition ~ .
+                   ,data = Data_ibm, family = binomial(link = "logit"))
+summary(logit.model)
+
+```
+
+* The AIC of this model is quite optimum at 23169.
+* The difference between Null Deviance and Residual Deviance is quite significant,
+  indicating that the model is good.
+
+## Regression Model
+
+* The step function helps us to reduce each independent variable to understand which
+  independent variable if removed would be produce a better fitting model.
+  
+```{r}
+#Trainingmodel1=step(object = logit.model,direction = "both")
+#summary(Trainingmodel1)
+```
+
+* The above model gives the best indicator variables using the step function but it
+  takes a lot of time to run.
+  
+```{r,comment=NA}  
+#1  
+logit.model5 <- glm(Attrition ~ WorkLifeBalance+OverTime+BusinessTravel+
+                      DistanceFromHome,EnvironmentSatisfaction+JobInvolvement+JobSatisfaction + RelationshipSatisfaction,PercentSalaryHike,data = Data_ibm, family = binomial(link = "logit"))
+summary(logit.model5)
+```
+* The Model shows a very High AIC at 209362. 
+* The three stars show that the independent variables taken are statistically
+  significant and good parameters( three stars are present).
+             
+```{r,comment=NA}
+#2
+logit.model4 <- glm(Attrition ~ WorkLifeBalance+OverTime+BusinessTravel+
+                      DistanceFromHome,EnvironmentSatisfaction+JobInvolvement+JobSatisfaction,data = Data_ibm, family = binomial(link = "logit"))
+summary(logit.model4)
+
+```
+
+* The AIC is still quite high at 173358.
+
+```{r,comment=NA}
+#3
+logit.model3 <- glm(Attrition ~ WorkLifeBalance+OverTime+BusinessTravel+
+                      Data_ibm$DistanceFromHome,EnvironmentSatisfaction
+                   ,data = Data_ibm, family = binomial(link = "logit"))
+summary(logit.model3)
+```
+
+* The AIC has reduced to 58025. 
+
+```{r,comment=NA}
+#4
+logit.model2 <- glm(Attrition ~ WorkLifeBalance+OverTime+BusinessTravel
+                   ,data = Data_ibm, family = binomial(link = "logit"))
+summary(logit.model2)
+
+```
+
+```{r,comment=NA}
+#5
+logit.model1 <- glm(Attrition ~ WorkLifeBalance+OverTime
+                   ,data = Data_ibm, family = binomial(link = "logit"))
+
+summary(logit.model1)
+
+```
+
+* The model above signifies that Overtime and Work Life balance may be a good           indicator for reducing the Attrition.
+* Business Travel, Relationship Satisfaction, Distance from Home, Environment
+  Satisfaction, and Job Satisfaction are certain variables that must be considered,
+  and improved by the company,if they want the employees to stay.
+  
+## Plotting a Curve
+
+```{r,comment=NA}
+
+# 1 Job Satisfaction
+model1 <- glm(Attrition  ~ JobSatisfaction, data = Data_ibm, family = binomial(link = "logit"))
+summary(model1)
+coef(model1)
+exp(coef(model1))
+
+probablilities.train <-predict(model1, newdata = TrainingData, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+
+
+probablilities.test <-predict(model1, newdata = TestingData, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+
+ROC1 <- roc(TestingData$Attrition, probablilities.test)
+
+plot(ROC1, col= "blue", ylab="Sensitivity", xlab = 'Specificity') #plot the graph
+
+auc <- auc(ROC1)
+auc
+
+pred_logodds <- predict(model1, TestingData)
+
+pred_odds <- exp(pred_logodds)
+
+probs <- pred_odds/(1+pred_odds)
+
+pred_probs <- predict(model1, TestingData, type = 'response')
+
+```
+* The AUC is 0.4926, The plot is also not a very strong predictor of the response
+  variable, henceforth Job satisfaction alone is not responsible for attrition amongst
+  employee.
+  
+```{r,comment=NA}
+
+#2
+
+#colnames(Data_ibm)
+model2 <- glm(Attrition~OverTime, data = Data_ibm, family = binomial(link = "logit"))
+summary(model2)
+coef(model2)
+exp(coef(model2))
+probablilities.train <-predict(model2, newdata = TrainingData, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+probablilities.test <-predict(model2, newdata = TestingData, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+ROC2 <- roc(TestingData$Attrition, probablilities.test)
+plot(ROC2, col= "blue", ylab="Sensitivity", xlab = 'Specificity') #plot the graph
+auc <- auc(ROC2)
+auc
+pred_logodds <- predict(model2, TestingData)
+pred_odds <- exp(pred_logodds)
+probs <- pred_odds/(1+pred_odds)
+pred_probs <- predict(model2, TestingData, type ='response')
+
+```
+
+
+```{r,comment=NA}
+#3
+
+model3 <- glm(Attrition  ~ OverTime+WorkLifeBalance,data = Data_ibm, family = binomial(link = "logit"))
+summary(model3)
+coef(model3)
+exp(coef(model3))
+probablilities.train <-predict(model3, newdata = TrainingData, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.train > 0.5,1,0))
+probablilities.test <-predict(model3, newdata = TestingData, type = "response")
+predicted.classes.min <- as.factor(ifelse(probablilities.test > 0.5,"Yes","No"))
+ROC3 <- roc(TestingData$Attrition, probablilities.test)
+plot(ROC3, col= "blue", ylab="Sensitivity", xlab = 'Specificity') #plot the graph
+
+auc <- auc(ROC3)
+auc
+pred_logodds <- predict(model3, TestingData)
+pred_odds <- exp(pred_logodds)
+probs <- pred_odds/(1+pred_odds)
+pred_probs <- predict(model3, TestingData, type ='response')
+
+```
+
+## Effect Graph I
+
+```{r,comment=NA, fig.cap="Figure: Effect plot between explanatory and response Variable"}
+
+theme_set(theme_sjplot())
+
+fit <- lm(Attrition ~ JobSatisfaction + PercentSalaryHike + EnvironmentSatisfaction + YearsSinceLastPromotion +  OverTime , data = Data_ibm)
+
+plot_model(fit, type = "pred", terms = c("OverTime" ,"EnvironmentSatisfaction","PercentSalaryHike"))
+
+```
+
+* The above graph shows that attrition is higher in people who have to work over time.
+
+## Effect Graph II
+
+```{r,comment=NA}
+
+gg <- ggplot(Data_ibm, aes(YearsWithCurrManager,Attrition, color=Gender)) +
+ theme_bw() +
+geom_point(position = position_jitter(height = 0.02, width = 0)) +
+stat_smooth(method = "glm",family=binomial, alpha = 0.2,
+aes(fill=Gender), size=1.5, fullrange=TRUE)
+gg
+
+gg+facet_wrap(~BusinessTravel)
+
+```
+
+* The above graph shows that Female attrition is higher when there is no travel at the    rate of 0.65 .
+* Attrition is around 50% for both male and female when there is less frequent travel
+* Male attrition is slightly less when there is travel involved.
+
+
+
+```{r,comment=NA}
+e <- allEffects(logit.model5,partial.residuals= TRUE) 
+plot(e, ylab="Attrition",type="response",residuals.pch=1.5,rows=2, cols=2,cex.axis=0.2)  
+
+```
+* The Attrition is less when travel is rare
+* Distance from home is a dominant factor in predicting attrition
+* Attrition tends to be higher when work life balance is disturbed
+* Not conclusive results for overtime hours
+
+## Checking for Multi-Collinearity
+
+*The logistic Regression can be checked using the VIF method, however, we have to make
+ sure that the explanatory variables are not Categorical.
+
+```{r,comment=NA}
+Multi_collinear_check <- glm(Attrition~WorkLifeBalance+DistanceFromHome+EnvironmentSatisfaction+JobInvolvement+StockOptionLevel+OverTime+YearsSinceLastPromotion+Education+NumCompaniesWorked+RelationshipSatisfaction ,data = Data_ibm)
+summary(Multi_collinear_check)
+
+Check_vif<-summ(Multi_collinear_check, vifs = T)
+Check_vif                           #Reading the summary for Multi collinearity for the select variables   
+
+vif(Multi_collinear_check)
+
+vif_values <- vif(Multi_collinear_check)
+
+```
+
+* VIF value greater than one that means there is no collinearity as such.
+
+## Conclusion
+
+* I have used Logistic Regression Model here instead of Linear GLM because my
+  Dependent variable is nominal and has `yes` and `no` as its value.
+  
+* There are not many outliers in the data set, hence forth I have not treated any of
+  the values for removal of outliers or missing values. 
+  
+* The model shows an accuracy of 50% 
+
+* Area under the curve graph has not been very conclusive with individual variables. 
+
+## References
+
+* Deviance in the Context of Logistic Regression. (2017).
+  https://quantifyinghealth.com/deviance-in-logistic-regression/  
+  
+* Bartlett, J. (2014, August 25). Area under the ROC curve – assessing discrimination
+  in logistic regression. The Stats Geek 
+  https://thestatsgeek.com/2014/05/05/area-under-the-roc-curve-assessing-discriminatio
+  n-in-logistic-regression/  
+  
+* Choudhary, I. (2021, December 14). IBM HR Attrition Case Study - Towards Data
+  Science. Medium.
+  https://towardsdatascience.com/using-ml-to-predict-if-an-employee-will-leave.
+  
+* Outliers detection in R. (2019). Stats and R.
+  https://statsandr.com/blog/outliers-detection-in-r/#boxplot  
+  
+* RPubs - Logit Model and Effect Plots. (2018, September 30). Https://Rpubs.Com/.
+  https://rpubs.com/shreejit16/424432  
+  
+* Lüdecke, D. (2021, November 26). Plotting Marginal Effects of Regression Models.
+  https://cran.r-project.org/web/packages/sjPlot/vignettes/plot_marginal_effects.html

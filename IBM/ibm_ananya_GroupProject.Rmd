@@ -1,0 +1,376 @@
+---
+title: "IBM HR Data Analytics"
+author: "Ananya Sharma"
+date: "22/01/2022"
+output: html_document
+  
+   
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set
+devtools::source_gist("c83e078bf8c81b035e32c3fc0cf04ee8", 
+                      filename = 'render_toc.R')
+```
+
+## Table of Contents
+
+```{r toc, echo=FALSE} 
+render_toc("IBM.Rmd")
+```
+
+## Introduction and Problem faced by the Hr department of the company
+
+* Attrition is an issue that affects all organizations, regardless of their location, industry, or     size.  
+
+* It's a huge issue for a company, and forecasting turnover is at the top of Human Resources   
+  priorities in many companies.Employee turnover costs a lot of money for businesses.
+  
+* I have used the following approach for the data set:
+
+* `Hypothesis development`:gaining a deeper grasp of the issue statement by identifying potential 
+  influences on the result.
+  
+* `Data Exploration`: The process of looking at summaries of categorical and continuous variables and    drawing conclusions from the set using Exploratory Data Analysis and Inference Based Analytical      techniques.
+
+* `Data cleaning`:filling in missing values in the data, identifying outliers, and removing 
+  inconsequential variables from the data set.  Modifying existing variables and developing new ones   for analysis.  
+
+```{r comment=NA, include=FALSE}
+#install.packages("writexl")
+#install.packages("gridExtra")
+#install.packages("descr")
+#install.packages("MASS")
+#install.packages("knitr")
+library(knitr)  #For Table of content
+library(writexl)           
+library(ggplot2)      # for plotting graphs
+library(magrittr)  # for  %>% operator
+library(dplyr) # for mathematical computations
+library(psych)  # for describe
+library(tidyverse)
+library(gridExtra) # for grid arrange
+library(MASS) # for chisq
+library(descr)# for crosstable
+```
+
+```{r comment=NA}
+
+data_ibm<-read.csv("IBM_analysis.csv")
+
+```
+
+
+## Creating random subsets files.
+
+* The files have been created to distribute the data sets equally amongst all the group members.
+
+```{r comment=NA}
+#rand_df1<-data_ibm[sample(nrow(data_ibm),size=16666,replace=FALSE),]
+#rand_df2<-data_ibm[sample(nrow(data_ibm),size=16666,replace=FALSE),]
+#rand_df3<-data_ibm[sample(nrow(data_ibm),size=16668,replace=FALSE),]
+
+#head(rand_df1,n=3)
+#head(rand_df2,n=10)
+#head(rand_df3,n=5)
+```
+
+```{r comment=NA }
+#write.csv(rand_df1,"D:\\Intermediate Analytics\\Group Project- IBM\\File_ONE.csv",row.names=FALSE)
+#write.csv(rand_df2,"D:\\Intermediate Analytics\\Group Project- IBM\\File_TWO.csv",row.names=FALSE)
+#write.csv(rand_df3,"D:\\Intermediate Analytics\\Group Project- IBM\\File_THREE.csv",row.names=FALSE)
+```
+
+## Data Description
+
+* The Data has been taken from the website of IBM for the purpose of performing analysis on the
+  employment attrition. `https://eforexcel.com/wp/downloads-21-sample-csv-files-data-sets-for-testin   g-till-5-million-records-hr-analytics-for-attrition/`.
+  
+* The data set is also a part of the Kaggle competition Data set.  
+
+* After segregation, we are left with 16,666 rows and 35 columns each. I have used `File_one.csv' to
+  perform analysis further into the HR attrition Analytics data set. 
+
+* HR Analytics assists human resources in interpreting data, making predictions, and taking the        necessary steps to operate its business efficiently and successfully. It has aided human 
+  resource   management in becoming more active and involved in the strategy and goals of the
+  company.We use the IBM data set to estimate attrition, as well as to investigate and analyze the
+  underlying issues through visualizations.
+
+
+```{r comment=NA}
+IBM_DATA<-read.csv("File_one.csv")
+ibm_data_df<-as.data.frame(IBM_DATA)
+```
+
+## Descriptive Statistics
+
+* Exploratory data analysis(EDA) helps us to dig in deep into the world of the data set. It gives us   a glimpse of what is the challenge being faced by the company.
+
+* When we get a data set, we are not sure about the direction in which we can start our analysis in.
+
+* EDA helps us to perform correlation and co-variation amongst the different variables to enable us    to start the analysis in a particular direction.
+  
+```{r comment=NA}
+psych::describe(ibm_data_df )
+
+str(ibm_data_df)
+```
+<br>
+
+*  The Box Plot between Monthly Income and Job role shows that Research Scientist and Developer have
+   slightly higher salary with the mean being at $27000 per month. It may be quite possible that the    attrition in these two categories would be less.
+   
+<br>
+
+## Box plot to explore the relation between Job Role and Monthly Income.    
+
+* Monthly income can be one of the major reasons that could be the reason why people chose to quit a   company.
+
+* In the figure below we try to see the relation between monthly income.    
+
+```{r comment=NA,fig.width=5, fig.height=3, fig.cap="Figure 1: Monthly income vs Job role"}
+
+#Box Plot
+  ggplot(ibm_data_df, aes(x = factor(JobRole), y = MonthlyIncome, fill = JobRole)) + 
+  geom_boxplot(alpha=0.3) + ggtitle("Monthly Income vs JobRole") + xlab("Job Role") + theme_light() +
+  stat_summary(fun = "mean", geom = "point", shape = 8,
+               size = 2, color = "white") + theme(axis.text.x=element_text(color = "black", size=11,   angle=30, vjust=.8, hjust=0.8)) 
+
+```
+## Business Question: Is the attrition in woman employees Higher than their Male Counterparts ?
+
+```{r comment=NA,fig.width=5, fig.height=4,fig.align='center',fig.cap="Figure3: Box plot to Analyse Attrition in male and Female"}
+library(dplyr)
+Attrited<- ibm_data_df %>% dplyr::select (Attrition,Gender) %>% filter(Attrition=="Yes") %>% group_by(Gender) %>% summarize(Count=n()) 
+
+ggplot(data=Attrited, aes(x=Gender, y=Count ,fill=Gender)) + geom_col()
+
+```
+<br>                      </br>
+
+* It is quite possible that job attrition may seem to be higher in woman than male or vice versa.
+
+* From the analysis of the data, we find that the attrition is marginally higher in male than female.
+
+### Business Problem Questions:
+
+* Do parameters like Working in a company for for years affect the attrition? 
+
+* Would you quit a company even if the number of years you have served in a current role is more?
+
+* Do you quit a company if you work with a manager and don't like working under him?
+
+* Does your promotion count affect the job attrition?
+
+* Comparing attrition with factors like `years at the company`,`years in current role`,`Last`   
+  `promotion received`, `experience in holding work experience` with the current manager.
+
+```{r comment=NA, Fig.cap="Figure 4: Group Analysis" }
+Yr_Com <- ggplot(ibm_data_df,aes(YearsAtCompany,fill = Attrition))+geom_bar()
+Yr_Cur <- ggplot(ibm_data_df,aes(YearsInCurrentRole,fill = Attrition))+geom_bar()
+Yr_LstProm <- ggplot(ibm_data_df,aes(YearsSinceLastPromotion,fill = Attrition))+geom_bar()
+Yr_CurMan <- ggplot(ibm_data_df,aes(YearsWithCurrManager,fill = Attrition))+geom_bar()
+grid.arrange(Yr_Com,Yr_Cur,Yr_LstProm,Yr_CurMan,ncol=2)
+
+```
+
+* As per the graph the attrition is higher at the starting years of joining a company.  
+
+* Similarly, attrition is higher in the initial years of joining a Manager.  
+
+* No promotions is definitely an indicator of higher attrition rate.  
+
+* Their are more job switches in the initial year of joining a position.
+
+
+```{r comment=NA,fig.align='center',fig.height=4,fig.width=3,fig.cap=" Figure 5: Descriptive Stats"}
+
+dep_ibm <- ggplot(ibm_data_df,aes(Department,fill = Attrition))+geom_bar() + theme(axis.text.x=element_text(color = "black", size=11,   angle=30, vjust=.8, hjust=0.8)) +ggtitle("Attrition in Departments")
+dep_ibm
+
+```
+<br>                  </br>
+
+* The above graph depicts that Research and development has higher attrition as compared to the other departments in IBM but the inference may be incorrect.
+
+### Business Problem: Which parameters are strong indicators of Attrition? 
+
+* Correlation is used to understand the linear relationship between the two parameters.
+
+* Correlation greater than 0.70% is considered to be strong.
+
+* We have explored the variables with quantitative values to get a better gist of what's happening in   the company and what may be a predominant factor leading to a high job attrition of the company. 
+
+```{r comment=NA, fig.cap=" Figure 6: Correlation amongst Variables to understand Attrition"}
+Var1<-subset(ibm_data_df,select=c(Age,TotalWorkingYears,MonthlyIncome,YearsAtCompany,YearsInCurrentRole,YearsWithCurrManager,YearsSinceLastPromotion))
+
+Cor_frame<-as.data.frame(cor(Var1))
+
+cor(Cor_frame)
+
+ggcorrplot::ggcorrplot(cor(Var1),method = "circle",title = "Corrplot attrition parameters",type ="lower" ,lab = TRUE)
+
+```
+<br>                     </br>
+
+* The above graph shows that years at company has a strong correlation with years in current role ,    years with current manager and years since last promotion, i.e- 0.75, 0.74,0.74 respectively.
+
+* We can use str to understand if the variable has factors or it is a numerical variable.
+
+ <br>
+ 
+## Inferential Statistics
+
+### Chi Square Test
+
+* Ho: The attrition is independent of the Department in which the employee works.(N=16,666)
+
+* H1: The attrition value is dependent on the department in which the employee works (N=16,666)
+
+* Here attrition is the dependent variable and Department is the independent variable .
+
+* From the result obtained, since the p value is greater than the significance value of 0.05, 
+  we fail to reject the Null Hypothesis.
+  
+* `Difficulties Faced:` Even though the sample size is unbalanced with different levels for the
+  dependent and independent variables, basing the assumption on the p value may be incorrect.
+  Not able to perform a fisher's test or a Kolmogorov Smiro Test due to differences in the levels of
+  `Kolmogorov Smiro Test.` 
+ 
+```{r comment=NA}
+
+#str(ibm_data_df)
+
+table1 = as.table(table(ibm_data_df$Attrition,ibm_data_df$Department))
+prop.table(table1)
+
+print(chisq.test(table(table1)))
+
+```
+<br> .......</br>
+
+* The warning that the Chi Square Approximation may be incorrect calls for another test: `Fisher's     Test.`
+
+* The p vale is greater than the significance value 0.05, hence we fail to reject the null 
+  hypothesis.
+
+### Business Question: Is there relation between job attrition and the department in which people        work?
+
+* It is quite possible that certain departments face more attrition than the rest.
+
+* Using a `Chi- Square` test and a plot to determine the same.
+
+```{r comment =NA, include=TRUE, fig.cap="Figure 7: Chi Test"}
+
+test <- chisq.test(table(table1))
+library(ggstatsplot)
+ggbarstats(
+  ibm_data_df, Attrition, Department,
+  results.subtitle = FALSE,
+  subtitle = paste0(
+    "Chi's test", ", p-value = ",
+    ifelse(test$p.value < 0.001, "< 0.001", round(test$p.value, 3))
+  )
+) + theme(axis.text.x=element_text(size=10, angle=90,hjust=0.4,vjust=0.2))
+```
+
+
+* Ho: The attrition is independent of the Department in which the employee works.(N=16,666)
+
+* H1: The attrition value is dependent on the department in which the employee works (N=16,666)
+
+* Here attrition is the dependent variable and Department is the independent variable.
+
+* From the result obtained, since the p value is greater than the significance value of 0.05, 
+  we fail to reject the Null Hypothesis.
+  
+* `Difficulties Faced:` Even though the sample size is unbalanced with different levels for the
+  dependent and independent variables, basing the assumption on the p value may be incorrect.
+  Not able to perform a fisher's test or a Kolmogorov Smiro Test due to differences in the levels of
+  the variables taken. 
+  
+* Since the data has been been segregated from the parent data set the results obtained here are       reflecting roughly an equal percentage to the attrition levels.( both no and yes variate from 49-51   percentage)
+
+### Anova Test 
+
+* A two-way ANOVA test is a statistical test that is used to see how two nominal predictor variables
+  affect a continuous outcome variable. The effect of the independent factors on the expected   
+  outcome, as well as their connection to the outcome, is investigated using a two-way ANOVA test.  
+  
+* With the two-way ANOVA, there are three basic forms of hypotheses-
+
+* The first factor's population means are equal.
+
+* The second factor's population means are equal.
+
+* The two variables do not interact in any way.
+
+## Business Question: We are conducting an Anova to study if the Education and Gender are parameters    in deciding the monthly income.
+  
+  Ho: There is no difference in the avg mean of any levels of the education field
+  
+  Ho: There is no difference in the avg mean of any levels of the Gender field
+  
+  Ho: There is no interaction between the variables of Gender and Education
+  
+  H1:Difference exists between the means of the factors of the Education variable. 
+  
+  H1:Difference exists between the means of the factors of the Gender Variable
+  
+  H1:There is significant interaction between Gender and Education variables.
+  
+ 
+```{r comment=NA}
+
+two_wayanova<- aov(MonthlyIncome ~ factor(Gender) + factor(Education), data = ibm_data_df)
+
+summary(two_wayanova)   # first test
+
+IBM_aov <- aov(MonthlyIncome ~ factor(EducationField) + factor(Gender)+factor(Education):factor(Gender), data = ibm_data_df)   # test for interaction
+summary(IBM_aov)
+Tukey_ibm <- TukeyHSD(IBM_aov)
+
+Tukey_ibm
+plot(Tukey_ibm, las = 1)
+
+```
+<br>                                                           </br>
+
+* Both the p values are greater than the significance value of 0.05, hence forth we fail to reject     the null hypothesis for the first test.
+
+* For the second test, test of interaction the p values are again greater than 0.05, henceforth we     fail to reject the null hypothesis.
+
+* The sum of squares is less for the interaction between gender and Education Field.
+
+* A tukey test is done to tell what are the differences between the levels of the factors of the 
+  variables taken. There is not much statistical difference between the various groups, after 
+  performing the tukey test.
+
+
+## Conclusion
+
+* As per my report the Males are more prone to leave a job as compared to women.
+
+* People from Research Department may tend to leave the job more as compared to the others. The data
+  maybe biased because I have received the data randomly from the file.
+
+* The hypothesis, where we derived the Chi square test states that the department and attrition don't   have a strong relation.
+
+* For a two way Anova test, there is not much statistical difference between the various groups,
+  after performing the tukey test.
+
+
+## References:
+
+* Chi-square Test with High Sample Size and Unbalanced Data. (2019, December 11). Cross Validated.
+  https://stats.stackexchange.com/questions/440371/chi-square-test-with-high-sample-size-and-unbalanc   ed-data
+
+* Chandrasekharan, S. (2019). [PDF] Statistical Issues in Small and Large Sample: Need of Optimum      Upper Bound for the Sample Size | Semantic Scholar. Https://Www.Semanticscholar.Org/.     
+  https://www.semanticscholar.org/paper/Statistical-Issues-in-Small-and-Large-Sample%3A-Need-Chandras   ekharan-Sreedharan/22ebf6f3a30e75b4240c8fcee93dce27066e11ff.
+
+* Singh, N. K. (2020, October 29). Exploratory Data Analysis in R with Tidyverse. Pluralsight.     
+  https://www.pluralsight.com/guides/exploratory-data-analysis-in-r  
+  
+* Bevans, R. (2021, July 1). ANOVA in R: A step-by-step guide. Scribbr.
+  https://www.scribbr.com/statistics/anova-in-r/#anova-graph  
+  
